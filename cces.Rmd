@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = FALSE)
 library(primer.data)
 library(tidyverse)
 library(rstanarm)
+library(tidybayes)
 
 # Check out the raw cces tibble, especially the faminc (family income) and
 # ideology variables.
@@ -33,16 +34,90 @@ x <- cces %>%
   
 ```
 
-
 *Describe the relationship between ideology and family income. How does it vary by gender? Does your conclusion change if we "adjust" for race and age?*
 
 
 ## Wisdom
 
+This is data for the approval ratings of voters to various government positions combined with the demographic background of the voter. It is population of people who answered the survey in the US. It could be biased to people who answer surveys, but generally since approximately 470,755 answered the survey it seems rather wide.
+The data is representative, because our question is not specified to a particular place, and we have a relatively large random sample size. 
 
 ## Justice
 
+# Written 1:
+$$y_i = \beta_0  + \beta_1 x_{1,i} + \beta_2 x_{3,i} + \beta_3 x_{4,i} + \beta_4 x_{5,i} + \beta_5 x_{6,i}  + \epsilon_i$$
 
+$$y_i = \beta_0 + \beta_1 Civic\_Duty_i + \beta_2 Hawthorne_i + \beta_3 Self_i + \beta_4 Neighbors_i + \beta_5 Sex\_Male_i + \epsilon_i$$
+```{r}
+x %>% 
+  ggplot(aes(faminc, ideology)) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = lm)
+```
+
+```{r}
+fit_1 <- stan_glm(data = x,
+         formula = ideology ~ faminc,
+         refresh = 0,
+         seed = 9)
+
+print(fit_1, digits = 3)
+```
+
+Our intercept is the ideology score for a person with zero family income. 
+When comparing two families that differ in income by 1 unit increase in family income, there is a prediction of -0.4046 in ideology score for the 
+
+```{r}
+fit_2 <- stan_glm(data = x,
+         formula = ideology ~ faminc + gender + faminc * gender,
+         refresh = 0,
+         seed = 9)
+
+print(fit_2, digits = 3)
+```
+
+If it says vary = interaction variable
+
+when comparing two men, the one in the richer family is likely to have an ideolgy that is minus 0.02. slope for women minus the interaction term.
+
+I am adjusting for race and age, controlling for race and age, but we are looking at the interaction variable. 
+
+
+```{r}
+fit_3 <- stan_glm(data = x,
+         formula = ideology ~ faminc + gender + faminc * gender + race + age,
+         refresh = 0,
+         seed = 9)
+
+print(fit_3, digits = 3)
+```
+
+
+```{r}
+newobs 
+expand_grid(faminc =  c(1, 6, 12),
+                       gender = c("Male", "Female"),
+                       race = "White",
+                       age = 50) %>% 
+  mutate(names = paste(faminc, gender, sep = "_"))
+
+newobs <- tibble(sex = rep(c("Male", "Female"), 3), 
+                 election_age = rep(c(30, 45, 60), 2),
+                 names = paste(sex, election_age, sep = "_"))
+
+pe <- posterior_epred(fit_2,
+                      newdata = newobs) %>% 
+  as_tibble() %>% 
+  set_names(newobs$names)
+  
+```
+
+```{r}
+posterior_epred()
+```
+
+
+If you are a male we expect your ideology to be around 3.5 
 ## Courage
 
 
